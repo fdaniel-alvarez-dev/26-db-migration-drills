@@ -8,6 +8,20 @@ if [[ -z "${latest}" ]]; then
 fi
 
 echo "Restoring latest backup: ${latest}"
-docker exec -i "$(docker compose ps -q postgres-primary)" psql -U app -d appdb -c "drop schema public cascade; create schema public;"
-docker exec -i "$(docker compose ps -q postgres-primary)" psql -U app -d appdb < "${latest}"
-echo "Restore complete."
+primary_id="$(docker compose ps -q postgres-primary)"
+if [[ -z "${primary_id}" ]]; then
+  echo "Postgres primary container not found. Run: make up"
+  exit 2
+fi
+
+verify_db="appdb_verify"
+
+echo "Restoring latest backup into isolated database '${verify_db}': ${latest}"
+docker exec -i "${primary_id}" psql -U app -d postgres -v ON_ERROR_STOP=1 -c "drop database if exists ${verify_db};"
+docker exec -i "${primary_id}" psql -U app -d postgres -v ON_ERROR_STOP=1 -c "create database ${verify_db};"
+docker exec -i "${primary_id}" psql -U app -d "${verify_db}" -v ON_ERROR_STOP=1 < "${latest}"
+
+echo "Verifying restored data..."
+docker exec -i "${primary_id}" psql -U app -d "${verify_db}" -v ON_ERROR_STOP=1 -c "select count(*) as demo_items_count from demo_items;"
+
+echo "Restore verification complete."

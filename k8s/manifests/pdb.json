@@ -1,0 +1,17 @@
+{
+  "apiVersion": "policy/v1",
+  "kind": "PodDisruptionBudget",
+  "metadata": {
+    "name": "db-lab-pdb",
+    "namespace": "db-lab"
+  },
+  "spec": {
+    "minAvailable": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "db"
+      }
+    }
+  }
+}
+
